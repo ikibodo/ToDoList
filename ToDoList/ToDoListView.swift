@@ -8,7 +8,7 @@
 import SwiftUI
 import CoreData
 
-struct ContentView: View {
+struct ToDoListView: View {
     @StateObject var vm = TodoViewModel()
     
     var body: some View {
@@ -48,10 +48,8 @@ struct ContentView: View {
                     .padding(.horizontal, 16)
                 }
             }
-            .toolbarBackground(.black, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .preferredColorScheme(.dark)
-            .background(Color.black.ignoresSafeArea())
+            .background(Color.black.ignoresSafeArea(edges: .bottom))
         }
         .statusBar(hidden: false)
     }
@@ -67,11 +65,11 @@ struct TodoRowView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(todo.title)
                     .font(.headline)
-                    .foregroundColor(todo.completed ? .gray : .primary)
-                    .strikethrough(todo.completed, color: .gray)
+                    .foregroundColor(todo.completed ? Color.App.textSecondary : Color.App.textPrimary)
+                    .strikethrough(todo.completed, color: Color.App.stroke)
                 
                 if let d = todo.description, !d.isEmpty {
-                    Text(d).font(.subheadline).foregroundColor(.secondary).lineLimit(2)
+                    Text(d).font(.subheadline).foregroundColor(Color.App.textSecondary).lineLimit(2)
                 }
                 Text(
                     todo.createdAt.formatted(
@@ -83,7 +81,7 @@ struct TodoRowView: View {
                     )
                 )
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.App.textSecondary)
             }
             Spacer()
         }
@@ -118,6 +116,8 @@ struct SearchBar: View {
     }
 }
 
+
+
 #Preview {
-    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    ToDoListView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

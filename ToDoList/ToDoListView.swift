@@ -80,6 +80,7 @@ struct TodoRowView: View {
     var onEdit: () -> Void = {}
     var onShare: () -> Void = {}
     var onDelete: () -> Void = {}
+    @Environment(\.displayScale) private var scale
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -94,7 +95,10 @@ struct TodoRowView: View {
                     .strikethrough(todo.completed, color: Color.App.stroke)
                 
                 if let d = todo.description, !d.isEmpty {
-                    Text(d).font(.subheadline).foregroundColor(Color.App.textSecondary).lineLimit(2)
+                    Text(d)
+                        .font(.subheadline)
+                        .foregroundColor(Color.App.textSecondary)
+                        .lineLimit(2)
                 }
                 Text(
                     todo.createdAt.formatted(

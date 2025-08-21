@@ -11,9 +11,26 @@ import SwiftUI
 struct ToDoListApp: App {
     let persistenceController = PersistenceController.shared
 
+    init() {
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(Color.App.black)
+
+        appearance.largeTitleTextAttributes = [
+            .foregroundColor: UIColor(Color.App.white),
+            .font: UIFont.systemFont(ofSize: 34, weight: .bold)
+        ]
+
+        let navBar = UINavigationBar.appearance()
+        navBar.standardAppearance = appearance
+        navBar.scrollEdgeAppearance = appearance
+        navBar.compactAppearance = appearance
+        navBar.tintColor = UIColor(Color.App.white) 
+    }
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ToDoListView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
     }

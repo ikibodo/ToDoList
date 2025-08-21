@@ -56,22 +56,20 @@ struct ToDoListView: View {
                     .padding(.horizontal, 16)
                 }
             }
-            .preferredColorScheme(.dark)
-            .background(Color.black.ignoresSafeArea(edges: .bottom))
+//            .preferredColorScheme(.dark)
+            .background(Color.App.black.ignoresSafeArea(edges: .bottom))
         }
         .statusBar(hidden: false)
         .sheet(item: $editTodo) { todo in
             EditTodoView(todo: todo)
         }
     }
-
+    
     private func share(_ todo: Todo) {
-        // TO DO:
         print("Share tapped for \(todo.title)")
     }
 
     private func delete(_ todo: Todo) {
-        // TO DO:
         print("Delete tapped for \(todo.title)")
     }
 }
@@ -123,6 +121,7 @@ struct TodoRowView: View {
             Button(role: .destructive, action: onDelete) {
                 Label("Удалить", systemImage: "trash")
             }
+            .foregroundColor(Color.App.stroke)
         }
     }
 }
@@ -145,11 +144,11 @@ struct SearchBar: View {
                 
             }
         }
-        .foregroundColor(.secondary)
+        .foregroundColor(Color.App.white.opacity(0.5))
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.12))
+                .fill(Color.App.gray)
         )
     }
 }

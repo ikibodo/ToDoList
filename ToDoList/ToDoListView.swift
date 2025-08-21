@@ -17,26 +17,25 @@ struct ToDoListView: View {
         NavigationView {
             VStack(spacing: 12) {
                 SearchBar(text: $vm.searchText)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 20)
                 
                 List {
                     ForEach(vm.filteredTodos) { todo in
-                        TodoRowView(todo: todo)
                         TodoRowView(
                             todo: todo,
                             onEdit: { editTodo = todo },
                             onShare: { share(todo) },
                             onDelete: { delete(todo) }
                         )
-                            .listRowInsets(.init(top: 10, leading: 16, bottom: 10, trailing: 16))
+                            .listRowInsets(.init(top: 16, leading: 20, bottom: 12, trailing: 20))
                             .listRowSeparator(.visible)
-                            .listRowSeparatorTint(.gray.opacity(0.4))
+                            .listRowSeparatorTint(Color.App.white.opacity(0.5))
                             .listRowBackground(Color.clear)
                     }
                     .onDelete(perform: vm.delete)
                 }
                 .listStyle(.plain)
-                .background(Color.black)
+                .background(Color.App.black)
             }
             .navigationTitle("Задачи")
             .navigationBarTitleDisplayMode(.large)
@@ -56,7 +55,8 @@ struct ToDoListView: View {
                     .padding(.horizontal, 16)
                 }
             }
-//            .preferredColorScheme(.dark)
+            .toolbarBackground(Color.App.gray, for: .bottomBar)
+            .toolbarBackground(.visible, for: .bottomBar)
             .background(Color.App.black.ignoresSafeArea(edges: .bottom))
         }
         .statusBar(hidden: false)

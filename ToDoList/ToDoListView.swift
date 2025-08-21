@@ -11,6 +11,8 @@ import CoreData
 struct ToDoListView: View {
     @StateObject var vm = TodoViewModel()
     
+    @State private var editTodo: Todo?
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 12) {
@@ -20,6 +22,12 @@ struct ToDoListView: View {
                 List {
                     ForEach(vm.filteredTodos) { todo in
                         TodoRowView(todo: todo)
+                        TodoRowView(
+                            todo: todo,
+                            onEdit: { editTodo = todo },
+                            onShare: { share(todo) },
+                            onDelete: { delete(todo) }
+                        )
                             .listRowInsets(.init(top: 10, leading: 16, bottom: 10, trailing: 16))
                             .listRowSeparator(.visible)
                             .listRowSeparatorTint(.gray.opacity(0.4))
@@ -52,10 +60,29 @@ struct ToDoListView: View {
             .background(Color.black.ignoresSafeArea(edges: .bottom))
         }
         .statusBar(hidden: false)
+        .sheet(item: $editTodo) { todo in
+            EditTodoView(todo: todo)
+        }
+    }
+
+    private func share(_ todo: Todo) {
+        // TO DO:
+        print("Share tapped for \(todo.title)")
+    }
+
+    private func delete(_ todo: Todo) {
+        // TO DO:
+        print("Delete tapped for \(todo.title)")
     }
 }
+
 struct TodoRowView: View {
     let todo: Todo
+    
+    var onEdit: () -> Void = {}
+    var onShare: () -> Void = {}
+    var onDelete: () -> Void = {}
+    
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: todo.completed ? "checkmark.circle" : "circle")
@@ -86,6 +113,17 @@ struct TodoRowView: View {
             Spacer()
         }
         .contentShape(Rectangle())
+        .contextMenu {
+            Button(action: onEdit) {
+                Label("Редактировать", systemImage: "square.and.pencil")
+            }
+            Button(action: onShare) {
+                Label("Поделиться", systemImage: "square.and.arrow.up")
+            }
+            Button(role: .destructive, action: onDelete) {
+                Label("Удалить", systemImage: "trash")
+            }
+        }
     }
 }
 
@@ -115,8 +153,6 @@ struct SearchBar: View {
         )
     }
 }
-
-
 
 #Preview {
     ToDoListView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)

@@ -113,19 +113,10 @@ struct TodoRowView: View {
                         .lineLimit(2)
                 }
                 
-                if let created = todo.createdAt {
-                    Text(
-                        created.formatted(
-                            Date.VerbatimFormatStyle(
-                                format: "dd/MM/yy",
-                                timeZone: .current,
-                                calendar: .current
-                            )
-                        )
-                    )
+                Text(todo.displayDateString)
                     .font(.caption)
                     .foregroundColor(Color.App.stroke)
-                }
+
             }
             Spacer()
         }

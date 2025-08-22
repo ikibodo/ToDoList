@@ -51,9 +51,18 @@ final class TodoViewModel: ObservableObject {
         context.delete(todo)
         saveSilently()
     }
+    
+    private func stampCreatedAtIfNeeded() {
+        context.performAndWait {
+            for case let t as CDTodo in context.insertedObjects where t.createdAt == nil {
+                t.createdAt = Date()
+            }
+        }
+    }
 
     func save() throws {
         if context.hasChanges {
+            stampCreatedAtIfNeeded()
             try context.save()
         }
     }
@@ -98,9 +107,9 @@ final class TodoViewModel: ObservableObject {
                     } else {
                         obj = CDTodo(context: context)
                         obj.id = Int64(r.id)
-                        obj.createdAt = now
+//                        obj.createdAt = now
                     }
-
+                    obj.createdAt = obj.createdAt ?? now
                     obj.title = r.todo
                     obj.details = nil
                     obj.completed = r.completed

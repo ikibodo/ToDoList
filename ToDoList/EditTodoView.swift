@@ -26,15 +26,7 @@ struct EditTodoView: View {
                 .padding(.horizontal)
                 
                 if let created = todo.createdAt {
-                    Text(
-                        created.formatted(
-                            Date.VerbatimFormatStyle(
-                                format: "dd/MM/yy",
-                                timeZone: .current,
-                                calendar: .current
-                            )
-                        )
-                    )
+                    Text(created.ddMMyyString)
                     .font(.subheadline)
                     .foregroundColor(Color.App.white.opacity(0.5))
                     .padding(.horizontal)

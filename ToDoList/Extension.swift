@@ -25,3 +25,20 @@ extension Color {
         static let menuBackground = Color(hex: 0xEDEDEDCC)
     }
 }
+
+extension Date {
+    var ddMMyyString: String {
+        let df = DateFormatter()
+        df.calendar = .current
+        df.timeZone = .current
+        df.locale = .current
+        df.dateFormat = "dd/MM/yy"
+        return df.string(from: self)
+    }
+}
+
+extension CDTodo {
+    var displayDateString: String {
+        (createdAt ?? .now).ddMMyyString
+    }
+}

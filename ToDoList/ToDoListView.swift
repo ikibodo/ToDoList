@@ -9,30 +9,40 @@ import SwiftUI
 import CoreData
 
 struct ToDoListView: View {
-    @StateObject var vm = TodoViewModel()
+    @ObservedObject var vm: TodoViewModel
+    @Environment(\.managedObjectContext) private var context
+    @State private var editTodo: CDTodo?
     
-    @State private var editTodo: Todo?
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodo.createdAt, ascending: false)],
+        animation: .default
+    )
+    
+    private var todos: FetchedResults<CDTodo>
     
     var body: some View {
         NavigationView {
             VStack(spacing: 12) {
                 SearchBar(text: $vm.searchText)
                     .padding(.horizontal, 20)
+                    .onChange(of: vm.searchText) { newValue in
+                        todos.nsPredicate = vm.predicate(for: newValue)
+                    }
                 
                 List {
-                    ForEach(vm.filteredTodos) { todo in
+                    ForEach(todos) { todo in
                         TodoRowView(
                             todo: todo,
                             onEdit: { editTodo = todo },
                             onShare: { share(todo) },
-                            onDelete: { delete(todo) }
+                            onDelete: { vm.delete(todo) }
                         )
                             .listRowInsets(.init(top: 16, leading: 20, bottom: 12, trailing: 20))
                             .listRowSeparator(.visible)
                             .listRowSeparatorTint(Color.App.white.opacity(0.5))
                             .listRowBackground(Color.clear)
                     }
-                    .onDelete(perform: vm.delete)
+                    .onDelete(perform: deleteOffsets)
                 }
                 .listStyle(.plain)
                 .background(Color.App.black)
@@ -43,10 +53,11 @@ struct ToDoListView: View {
                 ToolbarItem(placement: .bottomBar) {
                     HStack {
                         Spacer()
-                        Text("\(vm.filteredTodos.count) Задач")
-                            .foregroundColor(.white.opacity(0.9))
+                        Text("\(todos.count) Задач")
+                            .foregroundColor(Color.App.white)
                         Spacer()
-                        Button(action: { /* TO DO */ }) {
+                        Button { vm.addTodo(title: "Новая задача")
+                        } label: {
                             Image(systemName: "square.and.pencil")
                                 .imageScale(.large)
                         }
@@ -60,26 +71,27 @@ struct ToDoListView: View {
             .background(Color.App.black.ignoresSafeArea(edges: .bottom))
         }
         .statusBar(hidden: false)
-        .sheet(item: $editTodo) { todo in
-            EditTodoView(todo: todo)
+        .sheet(item: $editTodo) {
+            EditTodoView(todo: $0)
         }
     }
-    
-    private func share(_ todo: Todo) {
-        print("Share tapped for \(todo.title)")
+
+    private func share(_ todo: CDTodo) {
+        print("Share tapped for \(todo.title ?? "")")
     }
 
-    private func delete(_ todo: Todo) {
-        print("Delete tapped for \(todo.title)")
+    private func deleteOffsets(_ offsets: IndexSet) {
+        offsets.map { todos[$0] }.forEach(vm.delete)
     }
 }
 
 struct TodoRowView: View {
-    let todo: Todo
+    let todo: CDTodo
     
     var onEdit: () -> Void = {}
     var onShare: () -> Void = {}
     var onDelete: () -> Void = {}
+    
     @Environment(\.displayScale) private var scale
     
     var body: some View {
@@ -89,28 +101,31 @@ struct TodoRowView: View {
                 .foregroundColor(.yellow)
             
             VStack(alignment: .leading, spacing: 6) {
-                Text(todo.title)
+                Text(todo.title ?? "")
                     .font(.headline)
-                    .foregroundColor(todo.completed ? Color.App.textSecondary : Color.App.textPrimary)
+                    .foregroundColor(todo.completed ? Color.App.stroke : Color.App.white)
                     .strikethrough(todo.completed, color: Color.App.stroke)
-                
-                if let d = todo.description, !d.isEmpty {
+
+                if let d = todo.details, !d.isEmpty {
                     Text(d)
                         .font(.subheadline)
-                        .foregroundColor(Color.App.textSecondary)
+                        .foregroundColor(Color.App.white)
                         .lineLimit(2)
                 }
-                Text(
-                    todo.createdAt.formatted(
-                        Date.VerbatimFormatStyle(
-                            format: "dd/MM/yy",
-                            timeZone: .current,
-                            calendar: .current
+                
+                if let created = todo.createdAt {
+                    Text(
+                        created.formatted(
+                            Date.VerbatimFormatStyle(
+                                format: "dd/MM/yy",
+                                timeZone: .current,
+                                calendar: .current
+                            )
                         )
                     )
-                )
-                .font(.caption)
-                .foregroundColor(Color.App.textSecondary)
+                    .font(.caption)
+                    .foregroundColor(Color.App.stroke)
+                }
             }
             Spacer()
         }
@@ -158,5 +173,8 @@ struct SearchBar: View {
 }
 
 #Preview {
-    ToDoListView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    let pc = PersistenceController.preview
+    let vm = TodoViewModel(context: pc.container.viewContext)
+    ToDoListView(vm: vm)
+        .environment(\.managedObjectContext, pc.container.viewContext)
 }

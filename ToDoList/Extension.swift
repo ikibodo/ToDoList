@@ -23,7 +23,5 @@ extension Color {
         static let stroke = Color(hex: 0x4D555E)
         static let gray = Color(hex: 0x272729)
         static let menuBackground = Color(hex: 0xEDEDEDCC)
-        static let textPrimary = Color.App.white
-        static let textSecondary = Color.App.stroke
     }
 }

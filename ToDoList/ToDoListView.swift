@@ -19,22 +19,27 @@ struct ToDoListView: View {
                     .padding(.horizontal, 20)
                     .onChange(of: vm.searchText) { vm.search($0) }
                 
-                List {
-                    ForEach(vm.todos) { todo in
-                        TodoRowView(
-                            todo: todo,
-                            onToggle: { vm.toggle(todo) },
-                            onEdit:   { editTodo = todo },
-                            onDelete: { vm.delete(todo) }
-                        )
-                        .listRowInsets(.init(top: 16, leading: 20, bottom: 12, trailing: 20))
-                        .listRowSeparator(.visible)
-                        .listRowSeparatorTint(Color.App.white.opacity(0.5))
-                        .listRowBackground(Color.clear)
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(vm.todos.enumerated()), id: \.element.id) { index, todo in
+                            if index > 0 {
+                                InsetDivider()
+                                    .padding(.horizontal, 20)
+                            }
+                            
+                            TodoRowView(
+                                todo: todo,
+                                onToggle: { vm.toggle(todo) },
+                                onEdit:   { editTodo = todo },
+                                onDelete: { vm.delete(todo) }
+                            )
+                            .padding(.top, 12)
+                            .padding(.bottom, 12)
+                            .padding(.horizontal, 20)
+                            .background(Color.clear)
+                        }
                     }
-                    .onDelete(perform: deleteOffsets)
                 }
-                .listStyle(.plain)
                 .background(Color.App.black)
             }
             .navigationTitle("Задачи")
@@ -70,11 +75,14 @@ struct ToDoListView: View {
             )
         }
     }
-    
-    private func deleteOffsets(_ offsets: IndexSet) {
-        offsets
-            .map { vm.todos[$0] }
-            .forEach(vm.delete)
+}
+
+private struct InsetDivider: View {
+    @Environment(\.displayScale) private var scale
+    var body: some View {
+        Rectangle()
+            .fill(Color.App.white.opacity(0.5))
+            .frame(height: 1 / scale)
     }
 }
 
@@ -86,25 +94,35 @@ struct TodoRowView: View {
     var onDelete: () -> Void = {}
     
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: todo.completed ? "checkmark.circle" : "circle")
-                .font(.title3)
-                .foregroundColor(.yellow)
+        HStack(alignment: .top, spacing: 8) {
+            Circle()
+                .strokeBorder(
+                    todo.completed ? Color.yellow : Color.App.stroke,
+                    lineWidth: 1
+                )
+                .frame(width: 24, height: 24)
+                .overlay {
+                    if todo.completed {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.yellow)
+                    }
+                }
                 .onTapGesture { withAnimation { onToggle() } }
             
             VStack(alignment: .leading, spacing: 6) {
                 Text(todo.title)
-                    .font(.headline)
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(todo.completed ? Color.App.stroke : Color.App.white)
                     .strikethrough(todo.completed, color: Color.App.stroke)
                 
                 if let d = todo.description, !d.isEmpty {
                     Text(d)
-                        .font(.subheadline)
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundColor(todo.completed ? Color.App.stroke : Color.App.white)
                         .lineLimit(2)
                 }
-
+                
                 Text(todo.displayDateString)
                     .font(.caption)
                     .foregroundColor(Color.App.stroke)

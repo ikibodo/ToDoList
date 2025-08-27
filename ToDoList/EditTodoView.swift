@@ -27,17 +27,17 @@ struct EditTodoView: View {
             VStack(alignment: .leading, spacing: 16) {
                 
                 TextField("To Do", text: $title)
-                .font(.largeTitle.bold())
+                .font(.system(size:34, weight: .bold))
                 .foregroundColor(Color.App.white)
                 .padding(.horizontal)
 
                 Text(todo.displayDateString)
-                    .font(.subheadline)
+                    .font(.system(size:12, weight: .regular))
                     .foregroundColor(Color.App.white.opacity(0.5))
                     .padding(.horizontal)
 
                 TextEditor(text: $details)
-                .font(.body)
+                .font(.system(size:16, weight: .regular))
                 .foregroundColor(Color.App.white)
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal)
@@ -53,6 +53,7 @@ struct EditTodoView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "chevron.left")
                             Text("Назад")
+                                .font(.system(size:17, weight: .regular))
                         }
                     }
                 }

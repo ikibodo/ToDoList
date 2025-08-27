@@ -83,7 +83,7 @@ final class CoreDataTodoStore: TodoStore {
     private func fetchOne(by id: Int) throws -> CDTodo? {
         let r: NSFetchRequest<CDTodo> = CDTodo.fetchRequest()
         r.fetchLimit = 1
-        r.predicate = NSPredicate(format: "id == %d", id)
+        r.predicate = NSPredicate(format: "id == %@", NSNumber(value: id))
         return try viewContext.fetch(r).first
     }
     

@@ -30,7 +30,7 @@ struct ToDoListView: View {
                     }
                 
                 List {
-                    ForEach(todos) { todo in
+                    ForEach(todos, id: \.id) { todo in
                         TodoRowView(
                             todo: todo,
                             onEdit: { editTodo = todo },
@@ -86,19 +86,26 @@ struct ToDoListView: View {
 }
 
 struct TodoRowView: View {
-    let todo: CDTodo
+    @ObservedObject var todo: CDTodo
     
     var onEdit: () -> Void = {}
     var onShare: () -> Void = {}
     var onDelete: () -> Void = {}
     
     @Environment(\.displayScale) private var scale
+    @Environment(\.managedObjectContext) private var context
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: todo.completed ? "checkmark.circle" : "circle")
                 .font(.title3)
                 .foregroundColor(.yellow)
+                .onTapGesture {
+                    withAnimation {
+                        todo.completed.toggle()
+                        try? context.save()
+                    }
+                }
             
             VStack(alignment: .leading, spacing: 6) {
                 Text(todo.title ?? "")
@@ -109,7 +116,7 @@ struct TodoRowView: View {
                 if let d = todo.details, !d.isEmpty {
                     Text(d)
                         .font(.subheadline)
-                        .foregroundColor(Color.App.white)
+                        .foregroundColor(todo.completed ? Color.App.stroke : Color.App.white)
                         .lineLimit(2)
                 }
                 

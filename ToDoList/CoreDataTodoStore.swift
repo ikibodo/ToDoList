@@ -11,11 +11,20 @@ import CoreData
 @MainActor
 final class CoreDataTodoStore: TodoStore {
     private let viewContext: NSManagedObjectContext
+    private let backgroundContext: NSManagedObjectContext
     
     init(viewContext: NSManagedObjectContext) {
         self.viewContext = viewContext
         self.viewContext.automaticallyMergesChangesFromParent = true
         self.viewContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        
+        guard let psc = viewContext.persistentStoreCoordinator else {
+            fatalError("No persistentStoreCoordinator on viewContext")
+        }
+        let bg = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+        bg.persistentStoreCoordinator = psc
+        bg.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        self.backgroundContext = bg
     }
     
     // MARK: - TodoStore
@@ -33,39 +42,47 @@ final class CoreDataTodoStore: TodoStore {
     
     @discardableResult
     func add(title: String, description: String?) throws -> Todo {
-        let obj = CDTodo(context: viewContext)
-        obj.id = Int64(generateLocalId())
-        obj.title = title
-        obj.details = description
-        obj.completed = false
-        obj.createdAt = Date()
-        
-        try saveIfNeeded()
-        return obj.toDomain()
+        try performOnBackground {  [self] ctx in
+            let obj = CDTodo(context: ctx)
+            obj.id = Int64(generateLocalId())
+            obj.title = title
+            obj.details = description
+            obj.completed = false
+            obj.createdAt = Date()
+            try ctx.save()
+            return obj.toDomain()
+        }
     }
     
     func update(_ todo: Todo) throws {
-        guard let obj = try fetchOne(by: todo.id) else {
-            throw NSError(domain: "CoreDataTodoStore", code: 404, userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
+        try performOnBackground { ctx in
+            guard let obj = try self.fetchOneBG(by: todo.id, in: ctx) else {
+                throw NSError(domain: "CoreDataTodoStore", code: 404, userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
+            }
+            obj.apply(from: todo)
+            try ctx.save()
+            return ()
         }
-        obj.apply(from: todo)
-        try saveIfNeeded()
     }
     
     func toggle(id: Int) throws {
-        guard let obj = try fetchOne(by: id) else {
-            throw NSError(domain: "CoreDataTodoStore", code: 404, userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
+        try performOnBackground { ctx in
+            guard let obj = try self.fetchOneBG(by: id, in: ctx) else {
+                throw NSError(domain: "CoreDataTodoStore", code: 404, userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
+            }
+            obj.completed.toggle()
+            try ctx.save()
+            return ()
         }
-        obj.completed.toggle()
-        try saveIfNeeded()
     }
     
     func delete(id: Int) throws {
-        guard let obj = try fetchOne(by: id) else {
-            return
+        try performOnBackground { ctx in
+            guard let obj = try self.fetchOneBG(by: id, in: ctx) else { return () }
+            ctx.delete(obj)
+            try ctx.save()
+            return ()
         }
-        viewContext.delete(obj)
-        try saveIfNeeded()
     }
     
     func get(id: Int) throws -> Todo? {
@@ -85,6 +102,31 @@ final class CoreDataTodoStore: TodoStore {
         r.fetchLimit = 1
         r.predicate = NSPredicate(format: "id == %@", NSNumber(value: id))
         return try viewContext.fetch(r).first
+    }
+    
+    private func fetchOneBG(by id: Int, in ctx: NSManagedObjectContext) throws -> CDTodo? {
+        let r: NSFetchRequest<CDTodo> = CDTodo.fetchRequest()
+        r.fetchLimit = 1
+        r.predicate = NSPredicate(format: "id == %@", NSNumber(value: id))
+        return try ctx.fetch(r).first
+    }
+    
+    private func performOnBackground<T>(_ work: @escaping (NSManagedObjectContext) throws -> T) throws -> T {
+        var result: Result<T, Error>?
+        backgroundContext.performAndWait {
+            do {
+                let value = try work(self.backgroundContext)
+                result = .success(value)
+            } catch {
+                result = .failure(error)
+            }
+        }
+        switch result {
+        case .success(let value): return value
+        case .failure(let error): throw error
+        case .none:
+            throw NSError(domain: "CoreDataTodoStore", code: -1, userInfo: [NSLocalizedDescriptionKey: "No result from background operation"])
+        }
     }
     
     private func makeSearchPredicate(_ query: String?) -> NSPredicate? {

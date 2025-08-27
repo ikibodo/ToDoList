@@ -100,12 +100,13 @@ final class TodoViewModel: ObservableObject {
             let (data, _) = try await URLSession.shared.data(from: apiURL)
             let remote = try JSONDecoder().decode(RemoteTodoResponse.self, from: data)
             let now = Date()
-            
-            let existing = (try? store.load(query: nil)) ?? []
-            let existingIDs = Set(existing.map { $0.id })
+//            
+//            let existing = (try? store.load(query: nil)) ?? []
+//            let existingIDs = Set(existing.map { $0.id })
             
             for r in remote.todos {
-                let todo = Todo(
+//                let todo = Todo(
+                let t = Todo(
                     id: r.id,
                     title: r.todo,
                     description: nil,
@@ -113,11 +114,16 @@ final class TodoViewModel: ObservableObject {
                     createdAt: now
                 )
                 do {
-                    if existingIDs.contains(r.id) {
-                        try store.update(todo)
+//                    if existingIDs.contains(r.id) {
+//                        try store.update(todo)
+//                    } else {
+//                        _ = try store.add(title: todo.title, description: todo.description)
+//                        try store.update(todo)
+//                    }
+                    if (try? store.get(id: r.id)) != nil {
+                        try store.update(t)
                     } else {
-                        _ = try store.add(title: todo.title, description: todo.description)
-                        try store.update(todo)
+                        _ = try store.add(todo: t)
                     }
                 } catch {
                     print("Seed item error (id: \(r.id)):", error)

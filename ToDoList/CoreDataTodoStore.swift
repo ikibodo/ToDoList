@@ -25,6 +25,8 @@ final class CoreDataTodoStore: TodoStore {
     private let viewContext: NSManagedObjectContext
     private let backgroundContext: NSManagedObjectContext
     
+    private var lastGeneratedId: Int = 0
+    
     init(viewContext: NSManagedObjectContext) {
         self.viewContext = viewContext
         self.viewContext.automaticallyMergesChangesFromParent = true
@@ -61,6 +63,16 @@ final class CoreDataTodoStore: TodoStore {
             obj.details = description
             obj.completed = false
             obj.createdAt = Date()
+            try ctx.save()
+            return obj.toDomain()
+        }
+    }
+    
+    @discardableResult
+    func add(todo: Todo) throws -> Todo {
+        try performOnBackground { ctx in
+            let obj = CDTodo(context: ctx)
+            obj.apply(from: todo)
             try ctx.save()
             return obj.toDomain()
         }
@@ -154,7 +166,10 @@ final class CoreDataTodoStore: TodoStore {
     }
     
     private func generateLocalId() -> Int {
-        Int(Date().timeIntervalSince1970 * 1000)
+//        Int(Date().timeIntervalSince1970 * 1000)
+        let now = Int(Date().timeIntervalSince1970 * 1000)
+        if now <= lastGeneratedId { lastGeneratedId += 1 } else { lastGeneratedId = now }
+        return lastGeneratedId
     }
 }
 

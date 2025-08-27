@@ -43,6 +43,12 @@ final class TodoViewModelTests: XCTestCase {
             items.insert(t, at: 0)
             return t
         }
+        
+        @discardableResult
+        func add(todo: ToDoList.Todo) throws -> ToDoList.Todo {
+            items.insert(todo, at: 0)
+            return todo
+        }
 
         func update(_ todo: Todo) throws {
             if let idx = items.firstIndex(where: { $0.id == todo.id }) {

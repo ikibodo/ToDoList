@@ -6,47 +6,40 @@
 //
 
 import SwiftUI
+import CoreData
 
 struct EditTodoView: View {
-    let todo: Todo
-    
+    @ObservedObject var todo: CDTodo  
+    @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @State private var title: String
-    @State private var description: String
-    
-    init(todo: Todo) {
-        self.todo = todo
-        _title = State(initialValue: todo.title)
-        _description = State(initialValue: todo.description ?? "")
-    }
     
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
                 
-                TextField("To Do", text: $title)
-                    .font(.largeTitle.bold())
-                    .foregroundColor(Color.App.white)
-                    .padding(.horizontal)
-                
-                Text(
-                    todo.createdAt.formatted(
-                        Date.VerbatimFormatStyle(
-                            format: "dd/MM/yy",
-                            timeZone: .current,
-                            calendar: .current
-                        )
-                    )
-                )
-                .font(.subheadline)
-                .foregroundColor(Color.App.white.opacity(0.5))
+                TextField("To Do", text: Binding(
+                    get: { todo.title ?? "" },
+                    set: { todo.title = $0 }
+                ))
+                .font(.largeTitle.bold())
+                .foregroundColor(Color.App.white)
                 .padding(.horizontal)
                 
-                TextEditor(text: $description)
-                    .font(.body)
-                    .foregroundColor(Color.App.white)
-                    .scrollContentBackground(.hidden)
+                if let created = todo.createdAt {
+                    Text(created.ddMMyyString)
+                    .font(.subheadline)
+                    .foregroundColor(Color.App.white.opacity(0.5))
                     .padding(.horizontal)
+                }
+                
+                TextEditor(text: Binding(
+                    get: { todo.details ?? "" },
+                    set: { todo.details = $0 }
+                ))
+                .font(.body)
+                .foregroundColor(Color.App.white)
+                .scrollContentBackground(.hidden)
+                .padding(.horizontal)
             }
             .padding(.top)
             .background(Color.App.black.ignoresSafeArea())
@@ -69,11 +62,11 @@ struct EditTodoView: View {
     }
     
     private func saveAndClose() {
-        // TODO: сохранение
+        do {
+            try context.save()
+        } catch {
+            print("Ошибка сохранения:", error)
+        }
         dismiss()
     }
 }
-
-//#Preview {
-//    EditTodoView()
-//}

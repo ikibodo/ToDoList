@@ -56,7 +56,7 @@ struct ToDoListView: View {
                             Image(systemName: "square.and.pencil")
                                 .imageScale(.large)
                         }
-                        .foregroundColor(.yellow)
+                        .foregroundColor(Color.App.yellow)
                     }
                     .padding(.horizontal, 16)
                 }
@@ -97,7 +97,7 @@ struct TodoRowView: View {
         HStack(alignment: .top, spacing: 8) {
             Circle()
                 .strokeBorder(
-                    todo.completed ? Color.yellow : Color.App.stroke,
+                    todo.completed ? Color.App.yellow : Color.App.stroke,
                     lineWidth: 1
                 )
                 .frame(width: 24, height: 24)
@@ -105,7 +105,7 @@ struct TodoRowView: View {
                     if todo.completed {
                         Image(systemName: "checkmark")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.yellow)
+                            .foregroundColor(Color.App.yellow)
                     }
                 }
                 .onTapGesture { withAnimation { onToggle() } }

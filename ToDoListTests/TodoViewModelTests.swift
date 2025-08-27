@@ -74,30 +74,24 @@ final class TodoViewModelTests: XCTestCase {
         let store = MockTodoStore()
         let vm = TodoViewModel(store: store)
 
-        // add
         vm.addTodo(title: "Buy milk", details: "2L")
         vm.addTodo(title: "Walk dog")
         XCTAssertEqual(vm.todos.count, 2)
 
-        // search
         vm.search("milk")
         XCTAssertEqual(vm.todos.count, 1)
         XCTAssertEqual(vm.todos.first?.title, "Buy milk")
 
-        // toggle — меняем статус выбранного элемента
         guard let item = vm.todos.first else { return XCTFail("No item") }
         let id = item.id
         vm.toggle(item)
 
-        // сбрасываем поиск и убеждаемся, что тот же id теперь completed = true
         vm.search("")
         let toggled = vm.todos.first(where: { $0.id == id })
         XCTAssertEqual(toggled?.completed, true)
 
-        // delete — удаляем тот же элемент
         vm.delete(item)
 
-        // обновляем список и убеждаемся, что элемента с таким id больше нет
         vm.search("")
         XCTAssertFalse(vm.todos.contains(where: { $0.id == id }))
     }

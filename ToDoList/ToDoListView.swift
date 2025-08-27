@@ -61,8 +61,13 @@ struct ToDoListView: View {
             .background(Color.App.black.ignoresSafeArea(edges: .bottom))
         }
         .statusBar(hidden: false)
-        .sheet(item: $editTodo) { todo in
-            //            EditTodoView(todo: todo)
+        .sheet(item: $editTodo, onDismiss: { vm.search(vm.searchText) }) { todo in
+            EditTodoView(
+                todo: todo,
+                onSave: { updated in
+                    vm.update(updated)
+                }
+            )
         }
     }
     

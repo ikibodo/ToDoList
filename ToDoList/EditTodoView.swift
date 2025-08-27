@@ -6,36 +6,37 @@
 //
 
 import SwiftUI
-import CoreData
 
 struct EditTodoView: View {
-    @ObservedObject var todo: CDTodo  
-    @Environment(\.managedObjectContext) private var context
+    let todo: Todo
+    var onSave: (Todo) -> Void = { _ in }
+    
     @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+    @State private var details: String
+    
+    init(todo: Todo, onSave: @escaping (Todo) -> Void = { _ in }) {
+        self.todo = todo
+        self.onSave = onSave
+        _title = State(initialValue: todo.title)
+        _details = State(initialValue: todo.description ?? "")
+    }
     
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
                 
-                TextField("To Do", text: Binding(
-                    get: { todo.title ?? "" },
-                    set: { todo.title = $0 }
-                ))
+                TextField("To Do", text: $title)
                 .font(.largeTitle.bold())
                 .foregroundColor(Color.App.white)
                 .padding(.horizontal)
-                
-                if let created = todo.createdAt {
-                    Text(created.ddMMyyString)
+
+                Text(todo.displayDateString)
                     .font(.subheadline)
                     .foregroundColor(Color.App.white.opacity(0.5))
                     .padding(.horizontal)
-                }
-                
-                TextEditor(text: Binding(
-                    get: { todo.details ?? "" },
-                    set: { todo.details = $0 }
-                ))
+
+                TextEditor(text: $details)
                 .font(.body)
                 .foregroundColor(Color.App.white)
                 .scrollContentBackground(.hidden)
@@ -43,7 +44,6 @@ struct EditTodoView: View {
             }
             .padding(.top)
             .background(Color.App.black.ignoresSafeArea())
-            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -62,11 +62,11 @@ struct EditTodoView: View {
     }
     
     private func saveAndClose() {
-        do {
-            try context.save()
-        } catch {
-            print("Ошибка сохранения:", error)
-        }
+        var updated = todo
+        let trimmed = details.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.title = title
+        updated.description = trimmed.isEmpty ? nil : trimmed
+        onSave(updated)
         dismiss()
     }
 }

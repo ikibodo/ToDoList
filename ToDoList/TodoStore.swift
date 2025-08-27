@@ -19,4 +19,6 @@ protocol TodoStore {
     func toggle(id: Int) throws
 
     func delete(id: Int) throws
+    
+    func get(id: Int) throws -> Todo? 
 }

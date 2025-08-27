@@ -27,18 +27,32 @@ extension Color {
 }
 
 extension Date {
-    var ddMMyyString: String {
+    private static let ddMMyyFormatter: DateFormatter = {
         let df = DateFormatter()
         df.calendar = .current
         df.timeZone = .current
         df.locale = .current
         df.dateFormat = "dd/MM/yy"
-        return df.string(from: self)
+        return df
+    }()
+    
+    var ddMMyyString: String {
+        Date.ddMMyyFormatter.string(from: self)
     }
 }
 
 extension CDTodo {
     var displayDateString: String {
         (createdAt ?? .now).ddMMyyString
+    }
+}
+
+extension CDTodo {
+    var shareText: String {
+        let status = completed ? "✅ Выполнено" : "🟢 В процессе"
+        let titleText = (title?.isEmpty == false) ? (title ?? "") : "Без названия"
+        let detailsText = (details?.isEmpty == false) ? ("\n" + (details ?? "")) : ""
+        let dateText = displayDateString.isEmpty ? "" : "\n\(displayDateString)"
+        return "\(status)\n\(titleText)\(detailsText)\(dateText)"
     }
 }

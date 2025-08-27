@@ -34,7 +34,7 @@ struct ToDoListView: View {
                         TodoRowView(
                             todo: todo,
                             onEdit: { editTodo = todo },
-                            onShare: { share(todo) },
+//                            onShare: { share(todo) },
                             onDelete: { vm.delete(todo) }
                         )
                             .listRowInsets(.init(top: 16, leading: 20, bottom: 12, trailing: 20))
@@ -76,9 +76,9 @@ struct ToDoListView: View {
         }
     }
 
-    private func share(_ todo: CDTodo) {
-        print("Share tapped for \(todo.title ?? "")")
-    }
+//    private func share(_ todo: CDTodo) {
+//        print("Share tapped for \(todo.title ?? "")")
+//    }
 
     private func deleteOffsets(_ offsets: IndexSet) {
         offsets.map { todos[$0] }.forEach(vm.delete)
@@ -89,7 +89,7 @@ struct TodoRowView: View {
     @ObservedObject var todo: CDTodo
     
     var onEdit: () -> Void = {}
-    var onShare: () -> Void = {}
+//    var onShare: () -> Void = {}
     var onDelete: () -> Void = {}
     
     @Environment(\.displayScale) private var scale
@@ -132,7 +132,10 @@ struct TodoRowView: View {
             Button(action: onEdit) {
                 Label("Редактировать", systemImage: "square.and.pencil")
             }
-            Button(action: onShare) {
+//            Button(action: onShare) {
+//                Label("Поделиться", systemImage: "square.and.arrow.up")
+//            }
+            ShareLink(item: todo.shareText) {
                 Label("Поделиться", systemImage: "square.and.arrow.up")
             }
             Button(role: .destructive, action: onDelete) {

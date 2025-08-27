@@ -57,7 +57,10 @@ final class CoreDataTodoStore: TodoStore {
     func update(_ todo: Todo) throws {
         try performOnBackground { ctx in
             guard let obj = try self.fetchOneBG(by: todo.id, in: ctx) else {
-                throw NSError(domain: "CoreDataTodoStore", code: 404, userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
+                throw NSError(domain:
+                                "CoreDataTodoStore",
+                              code: 404,
+                              userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
             }
             obj.apply(from: todo)
             try ctx.save()
@@ -68,7 +71,9 @@ final class CoreDataTodoStore: TodoStore {
     func toggle(id: Int) throws {
         try performOnBackground { ctx in
             guard let obj = try self.fetchOneBG(by: id, in: ctx) else {
-                throw NSError(domain: "CoreDataTodoStore", code: 404, userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
+                throw NSError(domain: "CoreDataTodoStore",
+                              code: 404,
+                              userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
             }
             obj.completed.toggle()
             try ctx.save()
@@ -121,11 +126,19 @@ final class CoreDataTodoStore: TodoStore {
                 result = .failure(error)
             }
         }
+        
+        viewContext.performAndWait {
+            self.viewContext.refreshAllObjects()
+        }
+        
         switch result {
         case .success(let value): return value
         case .failure(let error): throw error
         case .none:
-            throw NSError(domain: "CoreDataTodoStore", code: -1, userInfo: [NSLocalizedDescriptionKey: "No result from background operation"])
+            throw NSError(domain: "CoreDataTodoStore",
+                          code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "No result from background operation"]
+            )
         }
     }
     

@@ -166,7 +166,6 @@ final class CoreDataTodoStore: TodoStore {
     }
     
     private func generateLocalId() -> Int {
-//        Int(Date().timeIntervalSince1970 * 1000)
         let now = Int(Date().timeIntervalSince1970 * 1000)
         if now <= lastGeneratedId { lastGeneratedId += 1 } else { lastGeneratedId = now }
         return lastGeneratedId

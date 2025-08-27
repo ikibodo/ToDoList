@@ -21,11 +21,6 @@ struct ToDoListView: View {
                 
                 ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: 0) {
-//                        ForEach(Array(vm.todos.enumerated()), id: \.element.id) { index, todo in
-//                            if index > 0 {
-//                                InsetDivider()
-//                                    .padding(.horizontal, 20)
-//                            }
                         ForEach(vm.todos, id: \.id) { todo in
                             if todo.id != vm.todos.first?.id {
                                 InsetDivider().padding(.horizontal, 20)

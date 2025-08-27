@@ -8,6 +8,18 @@
 import Foundation
 import CoreData
 
+private enum StoreError: LocalizedError {
+    case notFound
+    case noResult
+
+    var errorDescription: String? {
+        switch self {
+        case .notFound:  return "Todo not found"
+        case .noResult:  return "No result from background operation"
+        }
+    }
+}
+
 @MainActor
 final class CoreDataTodoStore: TodoStore {
     private let viewContext: NSManagedObjectContext
@@ -57,10 +69,7 @@ final class CoreDataTodoStore: TodoStore {
     func update(_ todo: Todo) throws {
         try performOnBackground { ctx in
             guard let obj = try self.fetchOneBG(by: todo.id, in: ctx) else {
-                throw NSError(domain:
-                                "CoreDataTodoStore",
-                              code: 404,
-                              userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
+                throw StoreError.notFound
             }
             obj.apply(from: todo)
             try ctx.save()
@@ -71,9 +80,7 @@ final class CoreDataTodoStore: TodoStore {
     func toggle(id: Int) throws {
         try performOnBackground { ctx in
             guard let obj = try self.fetchOneBG(by: id, in: ctx) else {
-                throw NSError(domain: "CoreDataTodoStore",
-                              code: 404,
-                              userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
+                throw StoreError.notFound
             }
             obj.completed.toggle()
             try ctx.save()
@@ -135,10 +142,7 @@ final class CoreDataTodoStore: TodoStore {
         case .success(let value): return value
         case .failure(let error): throw error
         case .none:
-            throw NSError(domain: "CoreDataTodoStore",
-                          code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "No result from background operation"]
-            )
+            throw StoreError.noResult
         }
     }
     

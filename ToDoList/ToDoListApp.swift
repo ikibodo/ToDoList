@@ -10,11 +10,14 @@ import SwiftUI
 @main
 struct ToDoListApp: App {
     let persistenceController = PersistenceController.shared
-    let vm: TodoViewModel
+    let store: TodoStore
+    @StateObject var vm: TodoViewModel
 
     init() {
-        vm = TodoViewModel(context: persistenceController.container.viewContext)
-        
+        let s = CoreDataTodoStore(viewContext: persistenceController.container.viewContext)
+        self.store = s
+        _vm = StateObject(wrappedValue: TodoViewModel(store: s))
+
         let appearance = UINavigationBarAppearance()
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(Color.App.black)
@@ -34,7 +37,6 @@ struct ToDoListApp: App {
     var body: some Scene {
         WindowGroup {
             ToDoListView(vm: vm)
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
     }
 }

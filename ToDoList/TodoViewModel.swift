@@ -6,85 +6,91 @@
 //
 
 import Foundation
-import CoreData
-
+ 
 @MainActor
 final class TodoViewModel: ObservableObject {
 
     @Published var searchText = ""
-
-    private let context: NSManagedObjectContext
+    @Published private(set) var todos: [Todo] = []
+    
+    private let store: TodoStore
     private let apiURL = URL(string: "https://dummyjson.com/todos")!
     private let seededKey = "seeded_v1"
     
-    init(context: NSManagedObjectContext) {
-        self.context = context
+    init(store: TodoStore) {
+        self.store = store
         ensureSeededIfNeeded()
-    }
-
-    func predicate(for text: String) -> NSPredicate? {
-        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !t.isEmpty else { return nil }
-        return NSPredicate(
-            format: "title CONTAINS[cd] %@ OR details CONTAINS[cd] %@",
-            t, t
-        )
-    }
-
-    // MARK: - CRUD
-    func addTodo(title: String, details: String? = nil) {
-        let todo = CDTodo(context: context)
-        todo.id = Int64(Date().timeIntervalSince1970)
-        todo.title = title
-        todo.details = details
-        todo.completed = false
-        todo.createdAt = Date()
-        saveSilently()
-    }
-
-    func toggle(_ todo: CDTodo) {
-        todo.completed.toggle()
-        saveSilently()
-    }
-
-    func delete(_ todo: CDTodo) {
-        context.delete(todo)
-        saveSilently()
+        reload()
     }
     
-    private func stampCreatedAtIfNeeded() {
-        context.performAndWait {
-            for case let t as CDTodo in context.insertedObjects where t.createdAt == nil {
-                t.createdAt = Date()
-            }
+    func search(_ text: String) {
+        self.searchText = text
+        reload(query: text)
+    }
+    
+    // MARK: - CRUD
+    
+    func addTodo(title: String, details: String? = nil) {
+        do {
+            _ = try store.add(title: title, description: details)
+            reload(query: searchText)
+        } catch {
+            print("Add error:", error)
         }
     }
-
-    func save() throws {
-        if context.hasChanges {
-            stampCreatedAtIfNeeded()
-            try context.save()
+    
+    func toggle(_ todo: Todo) {
+        do {
+            try store.toggle(id: todo.id)
+            reload(query: searchText)
+        } catch {
+            print("Toggle error:", error)
         }
     }
-
-    private func saveSilently() {
-        do { try save() } catch {
-            print("CoreData save error:", error)
+    
+    func update(_ todo: Todo) {
+        do {
+            try store.update(todo)
+            reload(query: searchText)
+        } catch {
+            print("Update error:", error)
         }
     }
-
-    // MARK: - Первый запуск: импорт из API → Core Data
+    
+    func delete(_ todo: Todo) {
+        do {
+            try store.delete(id: todo.id)
+            reload(query: searchText)
+        } catch {
+            print("Delete error:", error)
+        }
+    }
+    
+    // MARK: - Loading
+    
+    private func reload(query: String? = nil) {
+        do {
+            todos = try store.load(query: normalized(query))
+        } catch {
+            print("Load error:", error)
+            todos = []
+        }
+    }
+    
+    private func normalized(_ text: String?) -> String? {
+        guard let t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+        return t
+    }
+    
+    // MARK: - Первый запуск: импорт из API → Store
+    
     private func ensureSeededIfNeeded() {
         if UserDefaults.standard.bool(forKey: seededKey) { return }
 
-        let req: NSFetchRequest<CDTodo> = CDTodo.fetchRequest()
-        req.fetchLimit = 1
-        do {
-            if try context.count(for: req) > 0 {
-                UserDefaults.standard.set(true, forKey: seededKey) // уже есть данные
-                return
-            }
-        } catch {  }
+        if (try? store.load(query: nil).isEmpty) == false {
+            UserDefaults.standard.set(true, forKey: seededKey)
+            return
+        }
 
         Task { await importFromAPI() }
     }
@@ -94,32 +100,32 @@ final class TodoViewModel: ObservableObject {
             let (data, _) = try await URLSession.shared.data(from: apiURL)
             let remote = try JSONDecoder().decode(RemoteTodoResponse.self, from: data)
             let now = Date()
-
-            context.performAndWait {
-                for r in remote.todos {
-                    let fr: NSFetchRequest<CDTodo> = CDTodo.fetchRequest()
-                    fr.fetchLimit = 1
-                    fr.predicate = NSPredicate(format: "id == %d", r.id)
-
-                    let obj: CDTodo
-                    if let existing = (try? context.fetch(fr))?.first {
-                        obj = existing
+            
+            let existing = (try? store.load(query: nil)) ?? []
+            let existingIDs = Set(existing.map { $0.id })
+            
+            for r in remote.todos {
+                let todo = Todo(
+                    id: r.id,
+                    title: r.todo,
+                    description: nil,
+                    completed: r.completed,
+                    createdAt: now
+                )
+                do {
+                    if existingIDs.contains(r.id) {
+                        try store.update(todo)
                     } else {
-                        obj = CDTodo(context: context)
-                        obj.id = Int64(r.id)
-//                        obj.createdAt = now
+                        _ = try store.add(title: todo.title, description: todo.description)
+                        try store.update(todo)
                     }
-                    obj.createdAt = obj.createdAt ?? now
-                    obj.title = r.todo
-                    obj.details = nil
-                    obj.completed = r.completed
-                }
-                do { try context.save() } catch {
-                    print("Seed save error:", error)
+                } catch {
+                    print("Seed item error (id: \(r.id)):", error)
                 }
             }
-
+            
             UserDefaults.standard.set(true, forKey: seededKey)
+                        reload()
         } catch {
             print("Import error:", error)
         }

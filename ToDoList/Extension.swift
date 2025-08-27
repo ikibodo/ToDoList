@@ -41,17 +41,17 @@ extension Date {
     }
 }
 
-extension CDTodo {
+extension Todo {
     var displayDateString: String {
-        (createdAt ?? .now).ddMMyyString
+        (createdAt).ddMMyyString
     }
 }
 
-extension CDTodo {
+extension Todo {
     var shareText: String {
         let status = completed ? "✅ Выполнено" : "🟢 В процессе"
-        let titleText = (title?.isEmpty == false) ? (title ?? "") : "Без названия"
-        let detailsText = (details?.isEmpty == false) ? ("\n" + (details ?? "")) : ""
+        let titleText = title.isEmpty ? "Без названия" : title
+        let detailsText = (description?.isEmpty == false) ? ("\n" + (description ?? "")) : ""
         let dateText = displayDateString.isEmpty ? "" : "\n\(displayDateString)"
         return "\(status)\n\(titleText)\(detailsText)\(dateText)"
     }

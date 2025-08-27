@@ -6,41 +6,31 @@
 //
 
 import SwiftUI
-import CoreData
 
 struct ToDoListView: View {
     @ObservedObject var vm: TodoViewModel
-    @Environment(\.managedObjectContext) private var context
-    @State private var editTodo: CDTodo?
     
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CDTodo.createdAt, ascending: false)],
-        animation: .default
-    )
-    
-    private var todos: FetchedResults<CDTodo>
+    @State private var editTodo: Todo?
     
     var body: some View {
         NavigationView {
             VStack(spacing: 12) {
                 SearchBar(text: $vm.searchText)
                     .padding(.horizontal, 20)
-                    .onChange(of: vm.searchText) { newValue in
-                        todos.nsPredicate = vm.predicate(for: newValue)
-                    }
+                    .onChange(of: vm.searchText) { vm.search($0) }
                 
                 List {
-                    ForEach(todos, id: \.id) { todo in
+                    ForEach(vm.todos) { todo in
                         TodoRowView(
                             todo: todo,
-                            onEdit: { editTodo = todo },
-//                            onShare: { share(todo) },
+                            onToggle: { vm.toggle(todo) },
+                            onEdit:   { editTodo = todo },
                             onDelete: { vm.delete(todo) }
                         )
-                            .listRowInsets(.init(top: 16, leading: 20, bottom: 12, trailing: 20))
-                            .listRowSeparator(.visible)
-                            .listRowSeparatorTint(Color.App.white.opacity(0.5))
-                            .listRowBackground(Color.clear)
+                        .listRowInsets(.init(top: 16, leading: 20, bottom: 12, trailing: 20))
+                        .listRowSeparator(.visible)
+                        .listRowSeparatorTint(Color.App.white.opacity(0.5))
+                        .listRowBackground(Color.clear)
                     }
                     .onDelete(perform: deleteOffsets)
                 }
@@ -53,7 +43,7 @@ struct ToDoListView: View {
                 ToolbarItem(placement: .bottomBar) {
                     HStack {
                         Spacer()
-                        Text("\(todos.count) Задач")
+                        Text("\(vm.todos.count) Задач")
                             .foregroundColor(Color.App.white)
                         Spacer()
                         Button { vm.addTodo(title: "Новая задача")
@@ -71,59 +61,54 @@ struct ToDoListView: View {
             .background(Color.App.black.ignoresSafeArea(edges: .bottom))
         }
         .statusBar(hidden: false)
-        .sheet(item: $editTodo) {
-            EditTodoView(todo: $0)
+        .sheet(item: $editTodo, onDismiss: { vm.search(vm.searchText) }) { todo in
+            EditTodoView(
+                todo: todo,
+                onSave: { updated in
+                    vm.update(updated)
+                }
+            )
         }
     }
-
-//    private func share(_ todo: CDTodo) {
-//        print("Share tapped for \(todo.title ?? "")")
-//    }
-
+    
     private func deleteOffsets(_ offsets: IndexSet) {
-        offsets.map { todos[$0] }.forEach(vm.delete)
+        offsets
+            .map { vm.todos[$0] }
+            .forEach(vm.delete)
     }
 }
 
 struct TodoRowView: View {
-    @ObservedObject var todo: CDTodo
+    let todo: Todo
     
-    var onEdit: () -> Void = {}
-//    var onShare: () -> Void = {}
+    var onToggle: () -> Void = {}
+    var onEdit:   () -> Void = {}
     var onDelete: () -> Void = {}
-    
-    @Environment(\.displayScale) private var scale
-    @Environment(\.managedObjectContext) private var context
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: todo.completed ? "checkmark.circle" : "circle")
                 .font(.title3)
                 .foregroundColor(.yellow)
-                .onTapGesture {
-                    withAnimation {
-                        todo.completed.toggle()
-                        try? context.save()
-                    }
-                }
+                .onTapGesture { withAnimation { onToggle() } }
             
             VStack(alignment: .leading, spacing: 6) {
-                Text(todo.title ?? "")
+                Text(todo.title)
                     .font(.headline)
                     .foregroundColor(todo.completed ? Color.App.stroke : Color.App.white)
                     .strikethrough(todo.completed, color: Color.App.stroke)
-
-                if let d = todo.details, !d.isEmpty {
+                
+                if let d = todo.description, !d.isEmpty {
                     Text(d)
                         .font(.subheadline)
                         .foregroundColor(todo.completed ? Color.App.stroke : Color.App.white)
                         .lineLimit(2)
                 }
-                
+
                 Text(todo.displayDateString)
                     .font(.caption)
                     .foregroundColor(Color.App.stroke)
-
+                
             }
             Spacer()
         }
@@ -132,9 +117,6 @@ struct TodoRowView: View {
             Button(action: onEdit) {
                 Label("Редактировать", systemImage: "square.and.pencil")
             }
-//            Button(action: onShare) {
-//                Label("Поделиться", systemImage: "square.and.arrow.up")
-//            }
             ShareLink(item: todo.shareText) {
                 Label("Поделиться", systemImage: "square.and.arrow.up")
             }
@@ -175,7 +157,8 @@ struct SearchBar: View {
 
 #Preview {
     let pc = PersistenceController.preview
-    let vm = TodoViewModel(context: pc.container.viewContext)
+    let store = CoreDataTodoStore(viewContext: pc.container.viewContext)
+    let vm = TodoViewModel(store: store)
+    
     ToDoListView(vm: vm)
-        .environment(\.managedObjectContext, pc.container.viewContext)
 }

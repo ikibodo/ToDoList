@@ -13,6 +13,9 @@ protocol TodoStore {
     
     @discardableResult
     func add(title: String, description: String?) throws -> Todo
+    
+    @discardableResult
+    func add(todo: Todo) throws -> Todo
 
     func update(_ todo: Todo) throws
 

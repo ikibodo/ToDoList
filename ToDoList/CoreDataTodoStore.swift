@@ -8,14 +8,37 @@
 import Foundation
 import CoreData
 
+private enum StoreError: LocalizedError {
+    case notFound
+    case noResult
+
+    var errorDescription: String? {
+        switch self {
+        case .notFound:  return "Todo not found"
+        case .noResult:  return "No result from background operation"
+        }
+    }
+}
+
 @MainActor
 final class CoreDataTodoStore: TodoStore {
     private let viewContext: NSManagedObjectContext
+    private let backgroundContext: NSManagedObjectContext
+    
+    private var lastGeneratedId: Int = 0
     
     init(viewContext: NSManagedObjectContext) {
         self.viewContext = viewContext
         self.viewContext.automaticallyMergesChangesFromParent = true
         self.viewContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        
+        guard let psc = viewContext.persistentStoreCoordinator else {
+            fatalError("No persistentStoreCoordinator on viewContext")
+        }
+        let bg = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+        bg.persistentStoreCoordinator = psc
+        bg.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        self.backgroundContext = bg
     }
     
     // MARK: - TodoStore
@@ -33,39 +56,57 @@ final class CoreDataTodoStore: TodoStore {
     
     @discardableResult
     func add(title: String, description: String?) throws -> Todo {
-        let obj = CDTodo(context: viewContext)
-        obj.id = Int64(generateLocalId())
-        obj.title = title
-        obj.details = description
-        obj.completed = false
-        obj.createdAt = Date()
-        
-        try saveIfNeeded()
-        return obj.toDomain()
+        try performOnBackground {  [self] ctx in
+            let obj = CDTodo(context: ctx)
+            obj.id = Int64(generateLocalId())
+            obj.title = title
+            obj.details = description
+            obj.completed = false
+            obj.createdAt = Date()
+            try ctx.save()
+            return obj.toDomain()
+        }
+    }
+    
+    @discardableResult
+    func add(todo: Todo) throws -> Todo {
+        try performOnBackground { ctx in
+            let obj = CDTodo(context: ctx)
+            obj.apply(from: todo)
+            try ctx.save()
+            return obj.toDomain()
+        }
     }
     
     func update(_ todo: Todo) throws {
-        guard let obj = try fetchOne(by: todo.id) else {
-            throw NSError(domain: "CoreDataTodoStore", code: 404, userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
+        try performOnBackground { ctx in
+            guard let obj = try self.fetchOneBG(by: todo.id, in: ctx) else {
+                throw StoreError.notFound
+            }
+            obj.apply(from: todo)
+            try ctx.save()
+            return ()
         }
-        obj.apply(from: todo)
-        try saveIfNeeded()
     }
     
     func toggle(id: Int) throws {
-        guard let obj = try fetchOne(by: id) else {
-            throw NSError(domain: "CoreDataTodoStore", code: 404, userInfo: [NSLocalizedDescriptionKey: "Todo not found"])
+        try performOnBackground { ctx in
+            guard let obj = try self.fetchOneBG(by: id, in: ctx) else {
+                throw StoreError.notFound
+            }
+            obj.completed.toggle()
+            try ctx.save()
+            return ()
         }
-        obj.completed.toggle()
-        try saveIfNeeded()
     }
     
     func delete(id: Int) throws {
-        guard let obj = try fetchOne(by: id) else {
-            return
+        try performOnBackground { ctx in
+            guard let obj = try self.fetchOneBG(by: id, in: ctx) else { return () }
+            ctx.delete(obj)
+            try ctx.save()
+            return ()
         }
-        viewContext.delete(obj)
-        try saveIfNeeded()
     }
     
     func get(id: Int) throws -> Todo? {
@@ -87,6 +128,36 @@ final class CoreDataTodoStore: TodoStore {
         return try viewContext.fetch(r).first
     }
     
+    private func fetchOneBG(by id: Int, in ctx: NSManagedObjectContext) throws -> CDTodo? {
+        let r: NSFetchRequest<CDTodo> = CDTodo.fetchRequest()
+        r.fetchLimit = 1
+        r.predicate = NSPredicate(format: "id == %@", NSNumber(value: id))
+        return try ctx.fetch(r).first
+    }
+    
+    private func performOnBackground<T>(_ work: @escaping (NSManagedObjectContext) throws -> T) throws -> T {
+        var result: Result<T, Error>?
+        backgroundContext.performAndWait {
+            do {
+                let value = try work(self.backgroundContext)
+                result = .success(value)
+            } catch {
+                result = .failure(error)
+            }
+        }
+        
+        viewContext.performAndWait {
+            self.viewContext.refreshAllObjects()
+        }
+        
+        switch result {
+        case .success(let value): return value
+        case .failure(let error): throw error
+        case .none:
+            throw StoreError.noResult
+        }
+    }
+    
     private func makeSearchPredicate(_ query: String?) -> NSPredicate? {
         guard let q = query?.trimmingCharacters(in: .whitespacesAndNewlines), !q.isEmpty else {
             return nil
@@ -95,7 +166,9 @@ final class CoreDataTodoStore: TodoStore {
     }
     
     private func generateLocalId() -> Int {
-        Int(Date().timeIntervalSince1970 * 1000)
+        let now = Int(Date().timeIntervalSince1970 * 1000)
+        if now <= lastGeneratedId { lastGeneratedId += 1 } else { lastGeneratedId = now }
+        return lastGeneratedId
     }
 }
 

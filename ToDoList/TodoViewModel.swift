@@ -14,8 +14,8 @@ final class TodoViewModel: ObservableObject {
     @Published private(set) var todos: [Todo] = []
     
     private let store: TodoStore
-    private let apiURL = URL(string: "https://dummyjson.com/todos")!
-    private let seededKey = "seeded_v1"
+    private let apiURL = Constants.apiURL
+    private let seededKey = Constants.seededKey
     
     init(store: TodoStore) {
         self.store = store
@@ -96,16 +96,18 @@ final class TodoViewModel: ObservableObject {
     }
 
     private func importFromAPI() async {
+        guard let url = Constants.apiURL else {
+            print("Invalid API URL")
+            return
+        }
+        
         do {
-            let (data, _) = try await URLSession.shared.data(from: apiURL)
+            let (data, _) = try await URLSession.shared.data(from: url)
             let remote = try JSONDecoder().decode(RemoteTodoResponse.self, from: data)
             let now = Date()
             
-            let existing = (try? store.load(query: nil)) ?? []
-            let existingIDs = Set(existing.map { $0.id })
-            
             for r in remote.todos {
-                let todo = Todo(
+                let t = Todo(
                     id: r.id,
                     title: r.todo,
                     description: nil,
@@ -113,11 +115,10 @@ final class TodoViewModel: ObservableObject {
                     createdAt: now
                 )
                 do {
-                    if existingIDs.contains(r.id) {
-                        try store.update(todo)
+                    if (try? store.get(id: r.id)) != nil {
+                        try store.update(t)
                     } else {
-                        _ = try store.add(title: todo.title, description: todo.description)
-                        try store.update(todo)
+                        _ = try store.add(todo: t)
                     }
                 } catch {
                     print("Seed item error (id: \(r.id)):", error)
